@@ -1,4 +1,4 @@
-# GROMACS Analysis Toolkit
+# ClarityDynamics: GROMACS Analysis, Visualization, and QC Pipeline
 
 Maintained package for molecular-dynamics analysis and visualization from GROMACS-derived outputs.
 

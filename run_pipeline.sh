@@ -3,7 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-PYTHON_BIN="${PYTHON_BIN:-/Users/omara.soliman/opt/miniconda3/bin/python3}"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
 CONFIG="${CONFIG:-gromacs_pipeline_template.yaml}"
 
 if [[ "${1:-}" == "--dry-run" ]]; then

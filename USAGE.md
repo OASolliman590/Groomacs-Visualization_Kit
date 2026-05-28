@@ -1,4 +1,4 @@
-# GROMACS Analysis Toolkit Usage
+# ClarityDynamics Usage
 
 This guide explains practical use cases for the maintained package pipeline, from quick checks to full multi-ligand reporting.
 
