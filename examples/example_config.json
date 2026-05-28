@@ -1,0 +1,95 @@
+{
+  "base_dir": "./data",
+  "output_dir": "./output",
+  "protein_name": "ProteinX",
+  "systems": [
+    {
+      "name": "LigandA",
+      "dir_pattern": "14-ProteinX_HOLO_{}",
+      "is_apo": false,
+      "replicates": 3,
+      "color": [175, 0, 0]
+    },
+    {
+      "name": "APO",
+      "dir_pattern": "14-ProteinX_APO_{}",
+      "is_apo": true,
+      "replicates": 3,
+      "color": [72, 148, 67]
+    }
+  ],
+  "metrics": [
+    {
+      "name": "rmsd_prot",
+      "file_pattern": "RMSD_apo*.dat,RMSD_protein*.dat",
+      "title": "Protein RMSD",
+      "ylabel": "RMSD (Å)",
+      "is_holo_only": false,
+      "data_format": "two_column"
+    },
+    {
+      "name": "rmsd_lig",
+      "file_pattern": "RMSD_[!apo]*.dat,RMSD_ligand*.dat",
+      "title": "Ligand RMSD",
+      "ylabel": "RMSD (Å)",
+      "is_holo_only": true,
+      "data_format": "two_column"
+    },
+    {
+      "name": "rmsf",
+      "file_pattern": "RMSF*.dat",
+      "title": "Root Mean Square Fluctuation",
+      "ylabel": "RMSF (Å)",
+      "is_holo_only": false,
+      "data_format": "two_column"
+    },
+    {
+      "name": "rog",
+      "file_pattern": "rog*.dat,RoG*.dat",
+      "title": "Radius of Gyration",
+      "ylabel": "Rg (Å)",
+      "is_holo_only": false,
+      "data_format": "two_column"
+    },
+    {
+      "name": "sasa",
+      "file_pattern": "SASA*.dat,sasa*.dat",
+      "title": "Solvent Accessible Surface Area",
+      "ylabel": "SASA (Å²)",
+      "is_holo_only": false,
+      "data_format": "two_column"
+    },
+    {
+      "name": "hbonds",
+      "file_pattern": "hbonds*.dat,Hbond*.dat",
+      "title": "Hydrogen Bonds",
+      "ylabel": "Number of H-bonds",
+      "is_holo_only": false,
+      "data_format": "two_column"
+    },
+    {
+      "name": "comcom",
+      "file_pattern": "comcom*.dat,COM*.dat",
+      "title": "COM-COM Distance",
+      "ylabel": "Distance (Å)",
+      "is_holo_only": true,
+      "data_format": "two_column"
+    }
+  ],
+  "plot_config": {
+    "template": "plotly_white",
+    "width": 1200,
+    "height": 600,
+    "scale": 2,
+    "font_family": "Arial",
+    "font_size": 16,
+    "colors": {
+      "holo": [175, 0, 0],
+      "apo": [72, 148, 67]
+    },
+    "save_formats": ["html", "svg"]
+  },
+  "residue_range": [814, 1166],
+  "amino_acids": null
+}
+

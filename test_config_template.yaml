@@ -1,0 +1,99 @@
+# GROMACS MD Analysis Configuration Template
+# ============================================
+
+protein_name: "ProteinX"
+base_dir: "./data"
+output_dir: "./output"
+
+# Systems to analyze
+systems:
+  - name: "LigandA"                    # System name (e.g., ligand name)
+    dir_pattern: "HOLO_LigandA_{}"     # Directory pattern ({} = replicate number)
+    is_apo: false                   # Is this an APO system?
+    replicates: 3                   # Number of replicates
+    color: [175, 0, 0]              # RGB color for plots
+
+  - name: "APO"
+    dir_pattern: "APO_{}"
+    is_apo: true
+    replicates: 3
+    color: [72, 148, 67]            # Green for APO
+
+# Metrics to analyze (optional - will use defaults if not specified)
+metrics:
+  - name: "rmsd_prot"
+    file_pattern: "RMSD_protein*.dat,RMSD_apo*.dat"
+    title: "Protein RMSD"
+    ylabel: "RMSD (Å)"
+    is_holo_only: false
+    data_format: "two_column"
+
+  - name: "rmsd_lig"
+    file_pattern: "RMSD_[!apo]*.dat,RMSD_ligand*.dat"
+    title: "Ligand RMSD"
+    ylabel: "RMSD (Å)"
+    is_holo_only: true
+    data_format: "two_column"
+
+  - name: "rmsf"
+    file_pattern: "RMSF*.dat"
+    title: "Root Mean Square Fluctuation"
+    ylabel: "RMSF (Å)"
+    is_holo_only: false
+    data_format: "two_column"
+
+  - name: "rog"
+    file_pattern: "rog*.dat,RoG*.dat"
+    title: "Radius of Gyration"
+    ylabel: "Rg (Å)"
+    is_holo_only: false
+    data_format: "two_column"
+
+  - name: "sasa"
+    file_pattern: "SASA*.dat,sasa*.dat"
+    title: "Solvent Accessible Surface Area"
+    ylabel: "SASA (Å²)"
+    is_holo_only: false
+    data_format: "two_column"
+
+  - name: "hbonds"
+    file_pattern: "hbonds*.dat,Hbond*.dat"
+    title: "Hydrogen Bonds"
+    ylabel: "Number of H-bonds"
+    is_holo_only: false
+    data_format: "two_column"
+
+  - name: "comcom"
+    file_pattern: "comcom*.dat,COM*.dat"
+    title: "COM-COM Distance"
+    ylabel: "Distance (Å)"
+    is_holo_only: true
+    data_format: "two_column"
+
+# Amino acid numbering for RMSF (choose ONE option)
+amino_acids:
+  # Option 1: Simple range
+  range: [814, 1166]
+  
+  # Option 2: Multiple ranges with gaps (comment out 'range' above)
+  # ranges: [[814, 936], [994, 1168]]
+  
+  # Option 3: Custom list (comment out 'range' above)
+  # custom: [814, 815, 816, 994, 995, 996]
+
+# Optional: Residue range (alternative to amino_acids)
+# residue_range: [814, 1166]
+
+# Plot configuration
+plot_config:
+  template: "plotly_white"        # ggplot2, seaborn, simple_white, plotly_white, plotly_dark
+  style: "simple"                 # simple, enhanced, publication, overview, comparative
+  width: 1200
+  height: 600
+  scale: 2
+  font_family: "Arial"
+  font_size: 16
+  colors:
+    holo: [175, 0, 0]             # Red for HOLO
+    apo: [72, 148, 67]            # Green for APO
+  save_formats: ["html", "svg"]        # Add "png" only when local Chrome/Kaleido export is verified

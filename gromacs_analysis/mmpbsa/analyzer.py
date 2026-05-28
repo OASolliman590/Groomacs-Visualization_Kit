@@ -1,0 +1,516 @@
+"""
+MMPBSA Analyzer Module
+======================
+
+Main orchestrator for MMPBSA analysis.
+Coordinates data processing and plotting.
+"""
+
+import logging
+from pathlib import Path
+from typing import Dict, Optional, List
+import pandas as pd
+
+from .config import MMPBSAConfig
+from .processor import MMPBSAProcessor
+from .plotter import MMPBSAPlotter
+
+logger = logging.getLogger(__name__)
+
+
+class MMPBSAAnalyzer:
+    """
+    Main orchestrator for MMPBSA analysis.
+    
+    Coordinates the complete workflow:
+    - Data processing (via MMPBSAProcessor)
+    - Visualization (via MMPBSAPlotter)
+    - Statistics export
+    - Summary reports
+    
+    Attributes:
+        config: MMPBSAConfig object
+        processor: MMPBSAProcessor instance
+        plotter: MMPBSAPlotter instance
+    """
+    
+    def __init__(self, config: MMPBSAConfig):
+        """
+        Initialize analyzer with configuration.
+        
+        Args:
+            config: MMPBSAConfig object
+        """
+        self.config = config
+        self.processor = MMPBSAProcessor(config)
+        self.plotter = MMPBSAPlotter(config)
+        
+        logger.info("MMPBSAAnalyzer initialized")
+    
+    def run_analysis(self) -> Dict:
+        """
+        Run complete MMPBSA analysis pipeline.
+        
+        Workflow:
+        1. Create output directories
+        2. Find and process all data
+        3. Create all plots
+        4. Save statistics CSV
+        5. Generate summary report
+        
+        Returns:
+            Dict with results:
+            - output_dir: Path to output directory
+            - plots_dir: Path to plots directory
+            - plots_created: List of created plot names
+            - statistics_file: Path to statistics CSV
+            - n_systems: Number of systems analyzed
+        """
+        logger.info("="*60)
+        logger.info("Starting MMPBSA Analysis")
+        logger.info("="*60)
+        
+        # Step 1: Create output directories
+        logger.info("\n[1/5] Creating output directories...")
+        self._create_output_dirs()
+        
+        # Step 2: Find and process all data
+        logger.info("\n[2/5] Finding and processing data files...")
+        all_data = self.processor.load_all_data()
+        
+        if not all_data:
+            logger.error("No data found! Check your configuration and data directories.")
+            return {
+                'success': False,
+                'error': 'No data found'
+            }
+        
+        logger.info(f"  Processed {len(all_data)} systems")
+        for system_name, system_data in all_data.items():
+            has_results = system_data.get('results') is not None
+            has_decomp = system_data.get('decomp') is not None
+            logger.info(f"    {system_name}: Results={has_results}, Decomp={has_decomp}")
+        
+        # Step 3: Create all plots
+        logger.info("\n[3/5] Creating visualizations...")
+        plots_created = []
+        
+        plots_dir = self.config.output_dir / 'plots'
+        plots_dir.mkdir(parents=True, exist_ok=True)
+        
+        for system_name, system_data in all_data.items():
+            results_data = system_data.get('results')
+            decomp_data = system_data.get('decomp')
+            
+            # Component plot
+            if results_data:
+                try:
+                    fig = self.plotter.create_component_plot(results_data, system_name)
+                    self.plotter.save_plot(
+                        fig,
+                        plots_dir,
+                        f"components_{system_name}",
+                        fallback={
+                            'kind': 'components',
+                            'results_data': results_data,
+                            'system_name': system_name
+                        }
+                    )
+                    plots_created.append(f"components_{system_name}")
+                    logger.info(f"  ✓ Created component plot for {system_name}")
+                except Exception as e:
+                    logger.error(f"  ✗ Error creating component plot for {system_name}: {e}")
+            
+            # Decomposition plot
+            if decomp_data is not None and not decomp_data.empty and results_data:
+                try:
+                    fig = self.plotter.create_decomp_plot(decomp_data, results_data, system_name)
+                    self.plotter.save_plot(
+                        fig,
+                        plots_dir,
+                        f"decomp_{system_name}",
+                        fallback={
+                            'kind': 'decomp',
+                            'decomp_data': decomp_data,
+                            'results_data': results_data,
+                            'system_name': system_name
+                        }
+                    )
+                    plots_created.append(f"decomp_{system_name}")
+                    logger.info(f"  ✓ Created decomposition plot for {system_name}")
+                except Exception as e:
+                    logger.error(f"  ✗ Error creating decomposition plot for {system_name}: {e}")
+
+        # Cross-ligand comparison
+        if self.config.compare_systems and len(all_data) > 1:
+            try:
+                fig = self.plotter.create_binding_energy_comparison(
+                    all_data,
+                    binding_key=self.config.compare_binding_key
+                )
+
+                systems = []
+                means = []
+                stds = []
+                for system_name, system_data in all_data.items():
+                    results_data = system_data.get('results')
+                    if not results_data:
+                        continue
+                    mean_val, std_val = self.plotter._extract_binding_value(
+                        results_data,
+                        self.config.compare_binding_key
+                    )
+                    if mean_val is None:
+                        continue
+                    systems.append(system_name)
+                    means.append(mean_val)
+                    stds.append(std_val)
+
+                self.plotter.save_plot(
+                    fig,
+                    plots_dir,
+                    "binding_energy_compare",
+                    fallback={
+                        'kind': 'binding_compare',
+                        'systems': systems,
+                        'means': means,
+                        'stds': stds
+                    }
+                )
+                plots_created.append("binding_energy_compare")
+                logger.info("  ✓ Created binding energy comparison plot")
+            except Exception as e:
+                logger.error(f"  ✗ Error creating binding energy comparison plot: {e}")
+
+        # Component-by-component comparison
+        if self.config.compare_components and len(all_data) > 1:
+            try:
+                fig = self.plotter.create_components_comparison(
+                    all_data,
+                    component_order=self.config.compare_component_order
+                )
+
+                components = []
+                systems_series: Dict[str, Dict[str, List[float]]] = {}
+
+                # Resolve components list for fallback data
+                order = self.config.compare_component_order or [
+                    'ΔVDWAALS', 'ΔEEL', 'ΔEGB', 'ΔESURF', 'ΔGGAS', 'ΔGSOLV', 'ΔTOTAL'
+                ]
+                for comp in order:
+                    if any(comp in (data.get('results') or {}).get('delta_components', {}) for data in all_data.values()):
+                        components.append(comp)
+
+                for system_name, system_data in all_data.items():
+                    results_data = system_data.get('results')
+                    if not results_data:
+                        continue
+                    delta_components = results_data.get('delta_components', {})
+                    means = []
+                    stds = []
+                    for comp in components:
+                        comp_data = delta_components.get(comp)
+                        if comp_data:
+                            means.append(comp_data.get('mean'))
+                            stds.append(comp_data.get('std', 0.0))
+                        else:
+                            means.append(None)
+                            stds.append(0.0)
+                    systems_series[system_name] = {"means": means, "stds": stds}
+
+                self.plotter.save_plot(
+                    fig,
+                    plots_dir,
+                    "components_compare",
+                    fallback={
+                        'kind': 'components_compare',
+                        'components': components,
+                        'series': systems_series,
+                    }
+                )
+                plots_created.append("components_compare")
+                logger.info("  ✓ Created components comparison plot")
+            except Exception as e:
+                logger.error(f"  ✗ Error creating components comparison plot: {e}")
+        
+        # Step 4: Save parsed data as CSV
+        logger.info("\n[4/6] Exporting parsed data to CSV...")
+        data_files = self._save_parsed_data_csv(all_data)
+        
+        # Step 5: Save statistics
+        logger.info("\n[5/6] Exporting statistics...")
+        statistics_file = self._save_statistics_csv(all_data)
+        
+        # Step 6: Generate summary report
+        logger.info("\n[6/6] Generating summary report...")
+        summary_file = self._generate_summary_report(all_data, plots_created)
+        
+        logger.info("\n" + "="*60)
+        logger.info("MMPBSA Analysis Complete!")
+        logger.info("="*60)
+        logger.info(f"Output directory: {self.config.output_dir}")
+        logger.info(f"Plots created: {len(plots_created)}")
+        
+        return {
+            'success': True,
+            'output_dir': str(self.config.output_dir),
+            'plots_dir': str(plots_dir),
+            'plots_created': plots_created,
+            'statistics_file': str(statistics_file) if statistics_file else None,
+            'summary_file': str(summary_file) if summary_file else None,
+            'n_systems': len(all_data)
+        }
+    
+    def _create_output_dirs(self):
+        """Create output directory structure."""
+        self.config.output_dir.mkdir(parents=True, exist_ok=True)
+        (self.config.output_dir / 'plots').mkdir(parents=True, exist_ok=True)
+        (self.config.output_dir / 'data').mkdir(parents=True, exist_ok=True)
+    
+    def _save_parsed_data_csv(self, all_data: Dict) -> List[Path]:
+        """
+        Save parsed data to CSV files in the data folder.
+        
+        Args:
+            all_data: Processed data from processor
+            
+        Returns:
+            List of saved file paths
+        """
+        data_dir = self.config.output_dir / 'data'
+        data_dir.mkdir(parents=True, exist_ok=True)
+        saved_files = []
+        
+        try:
+            for system_name, system_data in all_data.items():
+                # Save results data
+                results_data = system_data.get('results')
+                qc_data = system_data.get('qc') or {}
+                if results_data:
+                    # Create DataFrame from delta components
+                    rows = []
+                    for comp_name, comp_data in results_data.get('delta_components', {}).items():
+                        rows.append({
+                            'Component': comp_name,
+                            'Mean': comp_data['mean'],
+                            'Std': comp_data['std'],
+                            'N': comp_data['n']
+                        })
+                    
+                    # Add binding energy
+                    for key, data in results_data.get('binding_energy', {}).items():
+                        rows.append({
+                            'Component': f'Binding_{key}',
+                            'Mean': data['mean'],
+                            'Std': data['std'],
+                            'N': data['n']
+                        })
+                    
+                    # Add entropy
+                    for key, data in results_data.get('entropy', {}).items():
+                        rows.append({
+                            'Component': f'Entropy_{key}',
+                            'Mean': data['mean'],
+                            'Std': data['std'],
+                            'N': data['n']
+                        })
+
+                    if rows and qc_data:
+                        for row in rows:
+                            row.update({
+                                'QC_ExpectedReplicates': qc_data.get('expected_replicates'),
+                                'QC_FoundResultsReplicates': qc_data.get('found_results_replicates'),
+                                'QC_MissingResultsReplicates': qc_data.get('missing_results_replicates'),
+                                'QC_ReplicateComplete': qc_data.get('replicate_complete'),
+                                'QC_GroupIdentityOK': qc_data.get('group_identity_ok'),
+                            })
+
+                    if rows:
+                        df_results = pd.DataFrame(rows)
+                        results_file = data_dir / f"{system_name}_results.csv"
+                        df_results.to_csv(results_file, index=False)
+                        saved_files.append(results_file)
+                        logger.info(f"  ✓ Saved results CSV: {results_file}")
+
+                    frame_data = results_data.get('frame_data')
+                    if frame_data is not None and not frame_data.empty:
+                        frame_file = data_dir / f"{system_name}_frame_results.csv"
+                        frame_data.to_csv(frame_file, index=False)
+                        saved_files.append(frame_file)
+                        logger.info(f"  ✓ Saved per-frame results CSV: {frame_file}")
+
+                if qc_data:
+                    qc_file = data_dir / f"{system_name}_qc.csv"
+                    pd.DataFrame([qc_data]).to_csv(qc_file, index=False)
+                    saved_files.append(qc_file)
+                    logger.info(f"  ✓ Saved QC metadata CSV: {qc_file}")
+                
+                # Save decomposition data
+                decomp_data = system_data.get('decomp')
+                if decomp_data is not None and not decomp_data.empty:
+                    decomp_file = data_dir / f"{system_name}_decomposition.csv"
+                    decomp_data.to_csv(decomp_file, index=False)
+                    saved_files.append(decomp_file)
+                    logger.info(f"  ✓ Saved decomposition CSV: {decomp_file}")
+            
+            return saved_files
+            
+        except Exception as e:
+            logger.error(f"Error saving parsed data to CSV: {e}")
+            return saved_files
+    
+    def _save_statistics_csv(self, all_data: Dict) -> Optional[Path]:
+        """
+        Save statistics to CSV file.
+        
+        Args:
+            all_data: Processed data from processor
+            
+        Returns:
+            Path to statistics file
+        """
+        try:
+            stats_data = []
+            
+            for system_name, system_data in all_data.items():
+                results_data = system_data.get('results')
+                if not results_data:
+                    continue
+                
+                # Delta components
+                for comp_name, comp_data in results_data.get('delta_components', {}).items():
+                    stats_data.append({
+                        'System': system_name,
+                        'Component': comp_name,
+                        'Mean': comp_data['mean'],
+                        'Std': comp_data['std'],
+                        'N': comp_data['n']
+                    })
+                
+                # Binding energy
+                for key, data in results_data.get('binding_energy', {}).items():
+                    stats_data.append({
+                        'System': system_name,
+                        'Component': f'Binding_{key}',
+                        'Mean': data['mean'],
+                        'Std': data['std'],
+                        'N': data['n']
+                    })
+                
+                # Entropy
+                for key, data in results_data.get('entropy', {}).items():
+                    stats_data.append({
+                        'System': system_name,
+                        'Component': f'Entropy_{key}',
+                        'Mean': data['mean'],
+                        'Std': data['std'],
+                        'N': data['n']
+                    })
+            
+            if stats_data:
+                df = pd.DataFrame(stats_data)
+                stats_file = self.config.output_dir / 'statistics_summary.csv'
+                df.to_csv(stats_file, index=False)
+                logger.info(f"  ✓ Statistics saved to: {stats_file}")
+                return stats_file
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error saving statistics: {e}")
+            return None
+    
+    def _generate_summary_report(self, all_data: Dict, plots_created: List) -> Optional[Path]:
+        """
+        Generate summary report in Markdown format.
+        
+        Args:
+            all_data: Processed data from processor
+            plots_created: List of created plot names
+            
+        Returns:
+            Path to summary file
+        """
+        try:
+            report_lines = [
+                f"# MMPBSA Analysis Summary - {self.config.protein_name}",
+                "",
+                "---",
+                "",
+                "## Configuration",
+                "",
+                f"- **Protein:** {self.config.protein_name}",
+                f"- **Ligand:** {self.config.ligand_name}",
+                f"- **Base Directory:** {self.config.base_dir}",
+                f"- **Output Directory:** {self.config.output_dir}",
+                "",
+                "## Systems Analyzed",
+                ""
+            ]
+            
+            for system in self.config.systems:
+                mode = "replicate" if system.replicates > 1 else "single"
+                report_lines.append(f"- **{system.name}**: {system.replicates} replicate(s) ({mode})")
+            
+            report_lines.extend([
+                "",
+                "## Results Summary",
+                ""
+            ])
+            
+            for system_name, system_data in all_data.items():
+                results_data = system_data.get('results')
+                qc_data = system_data.get('qc') or {}
+                if results_data:
+                    binding_energy = results_data.get('binding_energy', {})
+                    total = binding_energy.get('TOTAL', {})
+                    
+                    if total:
+                        mean = total.get('mean', 0.0)
+                        std = total.get('std', 0.0)
+                        report_lines.append(f"### {system_name}")
+                        report_lines.append(f"- **Binding Affinity (ΔG_bind):** {mean:.2f} ± {std:.2f} kcal/mol")
+                        if qc_data:
+                            found = qc_data.get('found_results_replicates')
+                            expected = qc_data.get('expected_replicates')
+                            missing = qc_data.get('missing_results_replicates')
+                            report_lines.append(
+                                f"- **Replicate completeness:** {found}/{expected} (missing: {missing})"
+                            )
+                            report_lines.append(
+                                f"- **Group identity check:** {qc_data.get('group_identity_ok')}"
+                            )
+                        report_lines.append("")
+            
+            report_lines.extend([
+                "## Generated Plots",
+                ""
+            ])
+            
+            for plot_name in plots_created:
+                report_lines.append(f"- `{plot_name}.html` / `{plot_name}.svg`")
+            
+            report_lines.extend([
+                "",
+                "---",
+                "",
+                f"Generated by GROMACS Analysis Toolkit"
+            ])
+            
+            report_file = self.config.output_dir / 'ANALYSIS_SUMMARY.md'
+            report_file.write_text('\n'.join(report_lines))
+            logger.info(f"  ✓ Summary report saved to: {report_file}")
+            return report_file
+            
+        except Exception as e:
+            logger.error(f"Error generating summary report: {e}")
+            return None
+    
+    def get_data(self) -> Dict:
+        """
+        Get processed data (for programmatic access).
+        
+        Returns:
+            Dictionary with all processed data
+        """
+        return self.processor.load_all_data()

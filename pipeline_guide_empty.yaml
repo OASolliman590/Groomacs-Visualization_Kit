@@ -1,0 +1,113 @@
+# Empty, anonymized pipeline guide
+# --------------------------------
+# This file is intentionally non-personal and uses placeholders only.
+# Copy and fill values into your local project YAML.
+
+project:
+  name: "your_project_name"
+  protein_name: "your_protein_name"
+
+paths:
+  data_root: "./path_to_data_root"
+  output_root: "./analysis_outputs"
+
+# Add only the stages you need, in execution order.
+run: []
+
+# Example stage snippets (keep disabled until configured)
+
+# qc:
+#   enabled: false
+#   base_dir: "./md_analysis_root"
+#   output_dir: "./analysis_outputs/qc"
+#   topology: "./system_1/step3_input.psf"
+#   trajectories:
+#     - "./system_1/step5_production_noPBC.xtc"
+#   expected_replicates: 1
+#   protein_selection: "protein"
+#   ligand_selection: "resname UNK"
+
+# md:
+#   enabled: false
+#   base_dir: "./md_analysis_root"
+#   output_dir: "./analysis_outputs/md"
+#   time_unit_input: "auto"
+#   time_unit_output: "ns"
+#   systems:
+#     - name: "LigandA"
+#       dir_pattern: "HOLO_LigandA_{}"
+#       replicates: 3
+
+# mmpbsa:
+#   enabled: false
+#   base_dir: "./mmpbsa_root"
+#   output_dir: "./analysis_outputs/mmpbsa"
+#   protein_name: "your_protein_name"
+#   ligand_name: "LigandA"
+#   systems:
+#     - name: "LigandA"
+#       dir_pattern: "HOLO_{}"
+#       replicates: 3
+
+# pca:
+#   enabled: false
+#   base_dir: "./pca_root"
+#   output_dir: "./analysis_outputs/pca"
+#   n_pcs: 10
+
+# distance:
+#   enabled: false
+#   base_dir: "./md_analysis_root"
+#   output_dir: "./analysis_outputs/distance"
+#   protein_name: "your_protein_name"
+#   ligand_name: "LigandA"
+#   topology: "./system_1/step3_input.psf"
+#   trajectories:
+#     - "./system_1/step5_production_noPBC.xtc"
+#   residues:
+#     range: [1, 100]
+#   ligand_selection: "resname UNK"
+
+# interactions:
+#   enabled: false
+#   base_dir: "./md_analysis_root"
+#   output_dir: "./analysis_outputs/interactions"
+#   protein_name: "your_protein_name"
+#   ligand_name: "LigandA"
+#   topology: "./system_1/step3_input.psf"
+#   trajectories:
+#     - "./system_1/step5_production_noPBC.xtc"
+
+# prolif:
+#   enabled: false
+#   base_dir: "./md_analysis_root"
+#   output_dir: "./analysis_outputs/prolif"
+#   protein_name: "your_protein_name"
+#   ligand_name: "LigandA"
+#   topology: "./system_1/step3_input.psf"
+#   trajectories:
+#     - "./system_1/step5_production_noPBC.xtc"
+#   lignetwork_display_all: true
+#   lignetwork_count_aware: true
+#   barcode_config:
+#     only_interacting_residues: true
+#     min_interaction_frames: 1
+
+# ttclust:
+#   enabled: false
+#   base_dir: "./md_analysis_root"
+#   output_dir: "./analysis_outputs/ttclust"
+#   protein_name: "your_protein_name"
+#   system_name: "LigandA"
+#   topology: "./system_1/step3_input.psf"
+#   trajectories:
+#     - "./system_1/step5_production_noPBC.xtc"
+
+# ranking:
+#   enabled: false
+#   output_dir: "./analysis_outputs/ranking"
+
+# utils:
+#   enabled: false
+#   output_dir: "./analysis_outputs/utils"
+#   tasks: []

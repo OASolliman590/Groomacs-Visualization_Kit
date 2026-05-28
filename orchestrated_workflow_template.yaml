@@ -1,0 +1,69 @@
+# Orchestrated upstream workflow template
+#
+# Run:
+#   python -m gromacs_analysis.cli.orchestrate_cli --config orchestrated_workflow_template.yaml --dry-run
+#   python -m gromacs_analysis.cli.orchestrate_cli --config orchestrated_workflow_template.yaml
+#
+# Merge behavior (Context7/GROMACS):
+# - Default trjcat behavior keeps sorted time and resolves duplicate timestamps by preferring later files.
+# - trjcat_mode: cat keeps duplicate timestamps (raw paste mode).
+# - use_settime: true lets you explicitly set each part start time via settime_starts_ps.
+
+defaults:
+  gmx: "gmx"
+  vmd: "vmd"
+  gmx_mmpbsa: "gmx_MMPBSA"
+  mpi_launcher: "mpirun"
+  mpi_ranks: 24
+
+systems:
+  - name: "pbp2_pat"
+    workdir: "/path/to/system_dir"
+    ligand_resname: "PAT"
+
+    topology_for_vmd: "step3_input.psf"
+    structure_gro: "step5_production.gro"
+    structure_tpr: "step5_production.tpr"
+    topology_top: "topol.top"
+
+    # Multi-part trajectory discovery
+    trajectory_patterns:
+      - "step5_*.xtc"
+      - "step5_production*.xtc"
+      - "prod*.xtc"
+
+    # Merge controls
+    trjcat_mode: "auto"              # auto|cat|dedup
+    strict_segment_sequence: true    # fail if numbered segment gaps are found
+    use_settime: false               # set true when restart parts need explicit timeline starts
+    settime_starts_ps: []            # e.g. [0, 10000, 20000] one per part if use_settime=true
+
+    concatenate_output: "step5_production_cat.xtc"
+    no_pbc_output: "step5_production_noPBC.xtc"
+    index_file: "new_index.ndx"
+    protein_group_name: "Protein"
+    ligand_group_name: "LIGAND"
+    complex_group_name: "COMPLEX"
+
+    # Built-in trajectory integrity checks
+    qc_enabled: true
+
+    # Step toggles
+    run_vmd: true
+    run_mmpbsa: false
+    run_pca: true
+
+    # PCA terminal-overhang aware grouping (RMSF-guided)
+    pca_terminal_grouping: true
+    pca_rmsf_file: "RMSF_.dat"
+    pca_reference_pdb: "step3_input.pdb"
+    pca_reference_gro: "step3_input.gro"
+    pca_index_file: "new_index_pca.ndx"
+    pca_core_group_name: "core_no_terminals"
+    pca_calpha_group_name: "core_no_terminals_Calpha"
+    # Optional manual override for core rows from RMSF table numbering:
+    # pca_core_residue_range: [9, 289]
+    pca_terminal_smoothing_window: 3
+    pca_terminal_mad_multiplier: 3.0
+    pca_terminal_stable_run: 3
+    pca_terminal_max_terminal_fraction: 0.25

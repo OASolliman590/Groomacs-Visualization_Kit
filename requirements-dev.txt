@@ -1,0 +1,19 @@
+# Development dependencies
+-r requirements.txt
+
+# Testing
+pytest>=6.0
+pytest-cov>=2.0
+pytest-mock>=3.6.0
+
+# Code quality
+black>=21.0
+flake8>=3.9
+mypy>=0.910
+pylint>=2.10
+
+# Documentation
+sphinx>=4.0
+sphinx-rtd-theme>=0.5
+
+
