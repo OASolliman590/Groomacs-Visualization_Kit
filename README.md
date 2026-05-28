@@ -106,3 +106,8 @@ The `utils` stage can generate VMD, MM-PBSA, and PCA helper scripts with `type: 
 ## Legacy Scripts
 
 Older standalone scripts are archived in `../../_legacy_scripts/`. They are retained for reference only, except for a few utility helpers used by the optional `utils` stage.
+
+## Contributors
+
+- Omar Ahmed Soliman (project author and maintainer)
+- Codex (AI engineering collaborator by OpenAI)
