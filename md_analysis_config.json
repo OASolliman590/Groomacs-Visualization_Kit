@@ -1,0 +1,16 @@
+{
+    "visualization": {
+        "template": "plotly_white",
+        "colors": ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"],
+        "title_font_size": 18,
+        "font_family": "Arial"
+    },
+    "analysis": {
+        "smoothing_window": 10,
+        "outlier_threshold": 3.0
+    },
+    "output": {
+        "formats": ["html", "svg", "png"],
+        "dpi": 300
+    }
+}

@@ -1,0 +1,17 @@
+{
+    "visualization": {
+        "template": "plotly_white",
+        "colors": [
+            "#1f77b4",
+            "#ff7f0e",
+            "#2ca02c",
+            "#d62728",
+            "#9467bd"
+        ],
+        "font_family": "Arial, sans-serif"
+    },
+    "analysis": {
+        "smoothing_window": 5,
+        "outlier_threshold": 3.0
+    }
+}
